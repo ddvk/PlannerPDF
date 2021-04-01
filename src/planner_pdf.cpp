@@ -159,7 +159,8 @@ class PlannerBase : public std::enable_shared_from_this<PlannerBase> {
       HPDF_REAL num_cols,
       std::vector<std::shared_ptr<PlannerBase> > &objects,
       bool create_annotations,
-      size_t first_entry_offset
+      size_t first_entry_offset,
+      bool drawBorder = false
       )
   {
     if((first_entry_offset + objects.size()) > (num_rows * num_cols))
@@ -185,15 +186,23 @@ class PlannerBase : public std::enable_shared_from_this<PlannerBase> {
           HPDF_REAL grid_y_start = y_stop - y - 30;//GetCenteredTextYPosition(_page, GetGridString(), y_stop - y, y_stop - y - y_step_size);
           HPDF_Page_MoveTextPos(_page, grid_x_start, grid_y_start);
 
+          HPDF_Rect rect = {x, y_stop - y - y_step_size, x + x_step_size, y_stop - y };
           if(true == create_annotations)
           {
             HPDF_Destination dest = HPDF_Page_CreateDestination(objects[object_index]->GetPage());
-            HPDF_Rect rect = {x, y_stop - y - y_step_size, x + x_step_size, y_stop - y };
             HPDF_Annotation annotation = HPDF_Page_CreateLinkAnnot(_page, rect, dest );
           }
 
           HPDF_Page_ShowText(_page, objects[object_index]->GetGridString().c_str());
           HPDF_Page_EndText(_page);
+
+          if(drawBorder && create_annotations ) {
+              HPDF_Page_GSave(_page);
+              HPDF_Page_SetRGBStroke(_page, 0.5,0.5,0.5);
+              HPDF_Page_Rectangle(_page,rect.left, rect.bottom, x_step_size, y_step_size);
+              HPDF_Page_Stroke(_page);
+              HPDF_Page_GRestore(_page);
+          }
 
           object_index++;
         }
@@ -241,8 +250,8 @@ class PlannerBase : public std::enable_shared_from_this<PlannerBase> {
     HPDF_Page_SetFontAndSize(_page, _notes_font, _page_title_font_size);
     HPDF_Page_SetLineWidth(_page, 1);
     /* Add navigation to left and right */
-    std::string left_string = "<-";
-    std::string right_string = "->";
+    std::string left_string = " < ";
+    std::string right_string = " > ";
     HPDF_REAL page_title_text_x = GetCenteredTextXPosition(_page, _page_title, 0, _page_width);
 
     /* Add left navigation */
@@ -261,12 +270,13 @@ class PlannerBase : public std::enable_shared_from_this<PlannerBase> {
     /* Add right navigation */
     if(NULL != _right)
     {
+      auto offset = 50;
       HPDF_REAL title_length = HPDF_Page_TextWidth(_page, _page_title.c_str());
       HPDF_Page_BeginText(_page);
-      HPDF_Page_MoveTextPos(_page, page_title_text_x + title_length + 100, _page_height - _page_title_font_size - 10);
+      HPDF_Page_MoveTextPos(_page, page_title_text_x + title_length + offset, _page_height - _page_title_font_size - 10);
       HPDF_Destination dest = HPDF_Page_CreateDestination(_right->GetPage());
       HPDF_REAL length = HPDF_Page_TextWidth(_page, right_string.c_str());
-      HPDF_Rect rect = {page_title_text_x + title_length + 100 , _page_height, page_title_text_x + title_length + 100 + length, _page_height - (_page_title_font_size * 2) };
+      HPDF_Rect rect = {page_title_text_x + title_length + offset , _page_height, page_title_text_x + title_length + 50 + length, _page_height - (_page_title_font_size * 2) };
       HPDF_Annotation annotation = HPDF_Page_CreateLinkAnnot(_page, rect, dest );
       HPDF_Page_ShowText(_page, right_string.c_str());
       HPDF_Page_EndText(_page);
@@ -433,9 +443,9 @@ class PlannerMonth:public PlannerBase  {
   {
     std::vector<std::shared_ptr<PlannerBase> > weekdays;
     date::weekday weekday;
-    for(size_t i = 0; i < 7; i++)
+    for(size_t i = 1; i < 8; i++)
     {
-      weekday = (date::weekday)i;
+      weekday = (date::weekday)(i%8);
       std::string weekday_name = format("%a", weekday);
       weekdays.push_back(std::make_shared<PlannerBase>(PlannerBase(weekday_name)));
     }
@@ -507,7 +517,7 @@ class PlannerMonth:public PlannerBase  {
   void AddDaysSection(HPDF_Doc &doc)
   {
 
-    date::year_month_day first_day = date::year(_month.year())/_month.month()/1;
+    date::year_month_day first_day = date::year(_month.year())/_month.month()/0;
     CreateGrid(
         doc,
        _page_width * _note_section_percentage + 30,
@@ -518,7 +528,8 @@ class PlannerMonth:public PlannerBase  {
         7,
         _days,
         true,
-        date::weekday{first_day}.c_encoding()
+        date::weekday{first_day}.c_encoding(),
+        true
         );
 
   }
@@ -591,7 +602,8 @@ class PlannerYear:public PlannerBase  {
         4,
         _months,
         true,
-        0
+        0, 
+        true
         );
   }
 
