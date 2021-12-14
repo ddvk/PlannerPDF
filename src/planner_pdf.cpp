@@ -37,8 +37,8 @@
 #include "date.h"
 #include "hpdf.h"
 
-const std::int64_t Remarkable_width_px = 1872;
-const std::int64_t Remarkable_height_px = 1404;
+const std::int64_t Remarkable_width_px = 1404;
+const std::int64_t Remarkable_height_px = 1872;
 
 /*!
  * @brief
@@ -175,25 +175,26 @@ class PlannerBase : public std::enable_shared_from_this<PlannerBase> {
     HPDF_Page_SetFontAndSize (_page, font, 25);
     size_t object_index = 0;
 
-    for(HPDF_REAL y = y_start; y < y_stop ; y = y + y_step_size)
+    for(HPDF_REAL y = y_start; y < y_stop ; y += y_step_size)
     {
-      for(HPDF_REAL x = x_start; x < x_stop && object_index < objects.size(); x = x + x_step_size)
+      for(HPDF_REAL x = x_start; x < x_stop && object_index < objects.size(); x += x_step_size)
       {
         if(first_entry_offset == 0)
         {
           HPDF_Page_BeginText(_page);
           HPDF_REAL grid_x_start = GetCenteredTextXPosition(_page, GetGridString(), x, x + x_step_size);
-          HPDF_REAL grid_y_start = y_stop - y - 30;//GetCenteredTextYPosition(_page, GetGridString(), y_stop - y, y_stop - y - y_step_size);
+          HPDF_REAL grid_y_start = _page_height - y - 30;//GetCenteredTextYPosition(_page, GetGridString(), y_stop - y, y_stop - y - y_step_size);
           HPDF_Page_MoveTextPos(_page, grid_x_start, grid_y_start);
 
-          HPDF_Rect rect = {x, y_stop - y - y_step_size, x + x_step_size, y_stop - y };
-          if(true == create_annotations)
+          HPDF_Rect rect = {x, _page_height - y - y_step_size, x + x_step_size, _page_height - y };
+          if(create_annotations)
           {
             HPDF_Destination dest = HPDF_Page_CreateDestination(objects[object_index]->GetPage());
             HPDF_Annotation annotation = HPDF_Page_CreateLinkAnnot(_page, rect, dest );
           }
+          auto objStr = objects[object_index]->GetGridString().c_str();
 
-          HPDF_Page_ShowText(_page, objects[object_index]->GetGridString().c_str());
+          HPDF_Page_ShowText(_page, objStr) ;
           HPDF_Page_EndText(_page);
 
           if(drawBorder && create_annotations ) {
@@ -347,7 +348,7 @@ class PlannerDay:public PlannerBase {
   {
     std::string year_title_string = "Tasks";
     HPDF_REAL notes_divider_x = _page_width * _note_section_percentage;
-    HPDF_REAL years_section_text_x = GetCenteredTextXPosition(_page, year_title_string, notes_divider_x, _page_width );
+    HPDF_REAL years_section_text_x = GetCenteredTextXPosition(_page, year_title_string, 0, _page_width );
     HPDF_Page_BeginText(_page);
     HPDF_Page_MoveTextPos(_page, years_section_text_x, _page_height - _page_title_font_size - _note_title_font_size - 10);
     HPDF_Page_ShowText(_page, year_title_string.c_str());
@@ -364,8 +365,8 @@ class PlannerDay:public PlannerBase {
   {
     CreatePage(doc, _page_height, _page_width);
     CreateTitle();
-    CreateNotesSection();
-    CreateTasksSection(doc);
+    //CreateNotesSection();
+    // CreateTasksSection(doc);
   }
 };
 
@@ -432,7 +433,7 @@ class PlannerMonth:public PlannerBase  {
     _grid_string = format("%b", _month);
     _page_height = height;
     _page_width = width;
-    _note_section_percentage = 0.25;
+    _note_section_percentage = 0;
     _parent = parent_year;
   }
 
@@ -454,7 +455,7 @@ class PlannerMonth:public PlannerBase  {
       (
        doc,
        _page_width * _note_section_percentage + 30,
-       45,
+       100,
        _page_width - 30,
        _page_height - 65,
        1,
@@ -520,10 +521,10 @@ class PlannerMonth:public PlannerBase  {
     date::year_month_day first_day = date::year(_month.year())/_month.month()/0;
     CreateGrid(
         doc,
-       _page_width * _note_section_percentage + 30,
-       45,
+       30,
+       140,
        _page_width - 30,
-       _page_height - 105,
+       _page_height - 399,
         6,
         7,
         _days,
@@ -552,7 +553,7 @@ class PlannerMonth:public PlannerBase  {
     AddDays();
     BuildDays(doc);
     AddDaysSection(doc);
-    CreateNotesSection();
+    // CreateNotesSection();
   }
 };
 
@@ -594,10 +595,10 @@ class PlannerYear:public PlannerBase  {
   {
     CreateGrid(
         doc,
-        _page_width * _note_section_percentage + 15,
-        45,
+        15,
+        100,
         _page_width - 15,
-        _page_height - 45,
+        _page_height - 500,
         3,
         4,
         _months,
@@ -661,7 +662,7 @@ class PlannerYear:public PlannerBase  {
     BuildMonths(doc);
     AddMonthsSection(doc);
     CreateTitle();
-    CreateNotesSection();
+    // CreateNotesSection();
 
   }
 
@@ -727,7 +728,7 @@ class PlannerMain:public PlannerBase   {
     CreateGrid(
         doc,
         notes_divider_x + 20,
-        35,
+        110,
         _page_width - 20,
         _page_height - _page_title_font_size - _note_title_font_size - 50,
         _years.size(),
@@ -772,7 +773,7 @@ class PlannerMain:public PlannerBase   {
     CreateTitle();
     BuildYears();
     CreateNavigation();
-    CreateNotesSection();
+    // CreateNotesSection();
     CreateYearsSection(_pdf);
 
   }
